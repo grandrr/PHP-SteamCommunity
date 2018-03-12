@@ -39,7 +39,7 @@ class Confirmations
             $confIdRegex = '/data-confid="(\d+)"/';
             $confKeyRegex = '/data-key="(\d+)"/';
             $confOfferRegex = '/data-creator="(\d+)"/';
-            $confDescRegex = '/<div>((Confirm|Trade with|Sell -) .+)<\/div>/';
+            $confDescRegex = '/<div>((Confirm|Trade|Sell) .+)<\/div>/';
 
             preg_match_all($confIdRegex, $response, $confIdMatches);
             preg_match_all($confKeyRegex, $response, $confKeyMatches);
