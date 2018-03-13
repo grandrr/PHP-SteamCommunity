@@ -1,5 +1,5 @@
 {
-    "name": "waylaidwanderer/php-steamcommunity",
+    "name": "grandrr/php-steamcommunity",
     "description": "A PHP library for interacting with the Steam Community website (steamcommunity.com)",
     "require": {
         "phpseclib/phpseclib": "^2.0"
