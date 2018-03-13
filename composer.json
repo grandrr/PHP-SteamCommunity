@@ -9,7 +9,7 @@
     },
     "autoload": {
         "psr-4": {
-            "waylaidwanderer\\SteamCommunity\\": "grandrr"
+            "waylaidwanderer\\SteamCommunity\\": ""
         }
     },
     "license": "MIT",
