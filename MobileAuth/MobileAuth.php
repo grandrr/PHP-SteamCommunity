@@ -56,6 +56,13 @@ class MobileAuth
     {
         try {
             $response = $this->steamCommunity->cURL('https://api.steampowered.com/IMobileAuthService/GetWGToken/v0001', null, ['access_token' => $this->oauth['oauth_token']]);
+
+            print_r('refresh mobile session');
+            echo PHP_EOL;
+            print_r($response);
+            echo PHP_EOL;
+            echo PHP_EOL;
+
             $json = json_decode($response, true);
             $this->oauth['wgtoken'] = $json['response']['token'];
             $this->oauth['wgtoken_secure'] = $json['response']['token_secure'];
