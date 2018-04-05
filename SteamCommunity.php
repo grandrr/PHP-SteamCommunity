@@ -135,6 +135,14 @@ class SteamCommunity
         $rsaResponse = $this->cURL('https://steamcommunity.com/login/getrsakey', null, ['username' => $this->username]);
         $rsaJson = json_decode($rsaResponse, true);
         if ($rsaJson == null) {
+
+            echo PHP_EOL;
+            echo 'rsa response';
+            echo PHP_EOL;
+            print_r($rsaResponse);
+            echo PHP_EOL;
+            echo PHP_EOL;
+
             return LoginResult::GeneralFailure;
         }
 
@@ -169,6 +177,14 @@ class SteamCommunity
         }
 
         $loginResponse = $this->cURL('https://steamcommunity.com/login/dologin/', null, $params);
+
+        echo PHP_EOL;
+        echo 'login response';
+        echo PHP_EOL;
+        print_r($loginResponse);
+        echo PHP_EOL;
+        echo PHP_EOL;
+
         $loginJson = json_decode($loginResponse, true);
 
         if ($loginJson == null) {
