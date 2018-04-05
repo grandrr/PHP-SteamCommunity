@@ -16,7 +16,14 @@ use waylaidwanderer\SteamCommunity\MobileAuth\MobileAuth;
 
 class SteamCommunity
 {
-    static $DEFAULT_MOBILE_COOKIES = ['mobileClientVersion' => '0 (2.1.3)', 'mobileClient' => 'android', 'Steam_Language' => 'english', 'dob' => ''];
+    static $DEFAULT_MOBILE_COOKIES = [
+        'mobileClientVersion' => '0 (2.1.3)',
+        'mobileClient' => 'android',
+        'Steam_Language' => 'english',
+        'dob' => '',
+    ];
+
+    private $proxy = null;
 
     private $username = '';
     private $password = '';
@@ -46,13 +53,21 @@ class SteamCommunity
     private $market;
     private $tradeOffers;
 
+    private $countRequestStorer = null;
+
     /**
      * SteamCommunity constructor.
-     * @param array $settings An array containing the account's information.
-     * @param string $rootDir The absolute path of the cookiefiles/authfiles directory root.
-     * @param bool $mobile
+     * @param array                       $settings
+     * @param string                      $rootDir
+     * @param bool                        $mobile
+     * @param CountRequestStorerInterface $countRequestStorer
      */
-    public function __construct($settings = [], $rootDir = '', $mobile = false) {
+    public function __construct(
+        $settings = [],
+        $rootDir = '',
+        $mobile = false,
+        CountRequestStorerInterface $countRequestStorer = null
+    ) {
         if (isset($settings['username'])) {
             $this->username = $settings['username'];
         }
@@ -65,12 +80,25 @@ class SteamCommunity
         if (isset($settings['apiKey'])) {
             $this->apiKey = $settings['apiKey'];
         }
-        if (isset($settings['mobileAuth'])) {
-            $this->mobileAuth = new MobileAuth($settings['mobileAuth'], new SteamCommunity([
-                'username' => $settings['username'],
-                'password' => $settings['password']
-            ], $rootDir, true));
+        if (isset($settings['proxy'])) {
+            $this->proxy = $settings['proxy'];
         }
+        if (isset($settings['mobileAuth'])) {
+            $this->mobileAuth = new MobileAuth(
+                $settings['mobileAuth'], new SteamCommunity(
+                    [
+                        'username' => $settings['username'],
+                        'password' => $settings['password'],
+                        'proxy' => $settings['proxy'],
+                    ], $rootDir,
+                    true,
+                    $countRequestStorer
+                )
+            );
+        }
+
+        $this->countRequestStorer = $countRequestStorer;
+
         $this->rootDir = $rootDir;
         $this->mobile = $mobile;
 
@@ -100,6 +128,7 @@ class SteamCommunity
                 $this->mobileAuth->setOauth(file_get_contents($this->getAuthFilePath()));
             }
             $this->loggedIn = true;
+
             return LoginResult::LoginOkay;
         }
 
@@ -117,7 +146,7 @@ class SteamCommunity
         $rsa->setEncryptionMode(RSA::ENCRYPTION_PKCS1);
         $key = [
             'modulus' => new BigInteger($rsaJson['publickey_mod'], 16),
-            'publicExponent' => new BigInteger($rsaJson['publickey_exp'], 16)
+            'publicExponent' => new BigInteger($rsaJson['publickey_exp'], 16),
         ];
         $rsa->loadKey($key, RSA::PUBLIC_FORMAT_RAW);
         $encryptedPassword = base64_encode($rsa->encrypt($this->password));
@@ -131,7 +160,7 @@ class SteamCommunity
             'emailsteamid' => ($this->requires2FA || $this->requiresEmail) ? (string)$this->steamId : '',
             'emailauth' => $this->requiresEmail ? $this->emailCode : '',
             'rsatimestamp' => $rsaJson['timestamp'],
-            'remember_login' => 'false'
+            'remember_login' => 'false',
         ];
         if ($mobile) {
             $params['oauth_client_id'] = 'DE45CD61';
@@ -144,26 +173,40 @@ class SteamCommunity
 
         if ($loginJson == null) {
             return LoginResult::GeneralFailure;
-        } else if (isset($loginJson['captcha_needed']) && $loginJson['captcha_needed']) {
-            $this->requiresCaptcha = true;
-            $this->captchaGID = $loginJson['captcha_gid'];
-            return LoginResult::NeedCaptcha;
-        } else if (isset($loginJson['emailauth_needed']) && $loginJson['emailauth_needed']) {
-            $this->requiresEmail = true;
-            $this->steamId = $loginJson['emailsteamid'];
-            return LoginResult::NeedEmail;
-        } else if (isset($loginJson['requires_twofactor']) && $loginJson['requires_twofactor'] && !$loginJson['success']) {
-            $this->requires2FA = true;
-            return LoginResult::Need2FA;
-        } else if (isset($loginJson['login_complete']) && !$loginJson['login_complete']) {
-            return LoginResult::BadCredentials;
-        } else if ($loginJson['success']) {
-            if (isset($loginJson['oauth'])) {
-                file_put_contents($this->getAuthFilePath(), $loginJson['oauth']);
+        } else {
+            if (isset($loginJson['captcha_needed']) && $loginJson['captcha_needed']) {
+                $this->requiresCaptcha = true;
+                $this->captchaGID = $loginJson['captcha_gid'];
+
+                return LoginResult::NeedCaptcha;
+            } else {
+                if (isset($loginJson['emailauth_needed']) && $loginJson['emailauth_needed']) {
+                    $this->requiresEmail = true;
+                    $this->steamId = $loginJson['emailsteamid'];
+
+                    return LoginResult::NeedEmail;
+                } else {
+                    if (isset($loginJson['requires_twofactor']) && $loginJson['requires_twofactor'] && !$loginJson['success']) {
+                        $this->requires2FA = true;
+
+                        return LoginResult::Need2FA;
+                    } else {
+                        if (isset($loginJson['login_complete']) && !$loginJson['login_complete']) {
+                            return LoginResult::BadCredentials;
+                        } else {
+                            if ($loginJson['success']) {
+                                if (isset($loginJson['oauth'])) {
+                                    file_put_contents($this->getAuthFilePath(), $loginJson['oauth']);
+                                }
+                                $this->_setSession();
+                                $this->loggedIn = true;
+
+                                return LoginResult::LoginOkay;
+                            }
+                        }
+                    }
+                }
             }
-            $this->_setSession();
-            $this->loggedIn = true;
-            return LoginResult::LoginOkay;
         }
 
         return LoginResult::GeneralFailure;
@@ -186,6 +229,7 @@ class SteamCommunity
             if (isset($matches[1])) {
                 $this->requiresCaptcha = true;
                 $this->captchaGID = $matches[1];
+
                 return CreateAccountResult::NeedCaptcha;
             } else {
                 throw new SteamException('Unexpected response from Steam.');
@@ -202,17 +246,20 @@ class SteamCommunity
                 'captcha_text' => $this->captchaText,
                 'i_agree' => 1,
                 'ticket' => '',
-                'count' => 14
+                'count' => 14,
             ];
             $createAccountResponse = $this->cURL($createAccountUrl, $captchaUrl, $params);
             $createAccountJson = json_decode($createAccountResponse, true);
 
             if ($createAccountJson == null) {
                 return CreateAccountResult::GeneralFailure;
-            } else if (isset($createAccountJson['bSuccess']) && $createAccountJson['bSuccess']) {
-                $this->_setSession();
-                $this->loggedIn = true;
-                return CreateAccountResult::CreatedOkay;
+            } else {
+                if (isset($createAccountJson['bSuccess']) && $createAccountJson['bSuccess']) {
+                    $this->_setSession();
+                    $this->loggedIn = true;
+
+                    return CreateAccountResult::CreatedOkay;
+                }
             }
         }
 
@@ -223,9 +270,16 @@ class SteamCommunity
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
+
+        if (!is_null($this->proxy)) {
+            curl_setopt($ch, CURLOPT_PROXYTYPE, 'HTTPS');
+            curl_setopt($ch, CURLOPT_PROXY, $this->proxy['ip']);
+            curl_setopt($ch, CURLOPT_PROXYUSERPWD, $this->proxy['login'].':'.$this->proxy['pass']);
+        }
+
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt ($ch, CURLOPT_SSL_VERIFYPEER, 0);
-        curl_setopt ($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         if (!empty($this->rootDir)) {
             curl_setopt($ch, CURLOPT_COOKIEFILE, $this->_getCookieFilePath());
             curl_setopt($ch, CURLOPT_COOKIEJAR, $this->_getCookieFilePath());
@@ -234,10 +288,18 @@ class SteamCommunity
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         if ($this->mobile) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-Requested-With: com.valvesoftware.android.steam.community"]);
-            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30");
+            curl_setopt(
+                $ch,
+                CURLOPT_USERAGENT,
+                "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
+            );
             curl_setopt($ch, CURLOPT_COOKIE, $this->buildCookie(self::$DEFAULT_MOBILE_COOKIES));
         } else {
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.3; WOW64; rv:27.0) Gecko/20100101 Firefox/27.0');
+            curl_setopt(
+                $ch,
+                CURLOPT_USERAGENT,
+                'Mozilla/5.0 (Windows NT 6.3; WOW64; rv:27.0) Gecko/20100101 Firefox/27.0'
+            );
         }
         if (isset($ref)) {
             curl_setopt($ch, CURLOPT_REFERER, $ref);
@@ -246,22 +308,28 @@ class SteamCommunity
             curl_setopt($ch, CURLOPT_POST, true);
             $postStr = "";
             foreach ($postData as $key => $value) {
-                if ($postStr)
+                if ($postStr) {
                     $postStr .= "&";
-                $postStr .= $key . "=" . $value;
+                }
+                $postStr .= $key."=".$value;
             }
             curl_setopt($ch, CURLOPT_POSTFIELDS, $postStr);
         }
         $output = curl_exec($ch);
         curl_close($ch);
+
+        $this->incrementCountRequests();
+
         return $output;
     }
 
-    private function buildCookie($cookie) {
+    private function buildCookie($cookie)
+    {
         $out = "";
         foreach ($cookie as $k => $c) {
             $out .= "{$k}={$c}; ";
         }
+
         return $out;
     }
 
@@ -270,12 +338,21 @@ class SteamCommunity
         if (is_null($this->steamId)) {
             $this->_setSession();
         }
+
         return $this->steamId != 0;
     }
 
     private function _setSession()
     {
         $response = $this->cURL('http://steamcommunity.com/');
+
+        echo PHP_EOL;
+        echo 'response->';
+        echo PHP_EOL;
+        print_r($response);
+        echo PHP_EOL;
+        echo PHP_EOL;
+
         $pattern = '/g_steamID = (.*);/';
         preg_match($pattern, $response, $matches);
         if (!isset($matches[1])) {
@@ -303,13 +380,19 @@ class SteamCommunity
 
     private function _getFileDir($dir)
     {
-        if (empty($this->rootDir)) return '';
+        if (empty($this->rootDir)) {
+            return '';
+        }
+
         return $this->rootDir.DIRECTORY_SEPARATOR.$dir;
     }
 
     private function _getFilePath($dir, $name, $ext)
     {
-        if (empty($this->rootDir)) return '';
+        if (empty($this->rootDir)) {
+            return '';
+        }
+
         return $this->_getFileDir($dir).DIRECTORY_SEPARATOR.$name.'.'.$ext;
     }
 
@@ -336,13 +419,14 @@ class SteamCommunity
 
     private function _getCookieFilePath()
     {
-        $name = $this->mobile ? $this->username . '_auth' : $this->username;
+        $name = $this->mobile ? $this->username.'_auth' : $this->username;
+
         return $this->_getFilePath('cookiefiles', $name, 'cookiefile');
     }
 
     private function _createCookieFile()
     {
-        $name = $this->mobile ? $this->username . '_auth' : $this->username;
+        $name = $this->mobile ? $this->username.'_auth' : $this->username;
         $this->_createFile('cookiefiles', $name, 'cookiefile');
     }
 
@@ -363,23 +447,51 @@ class SteamCommunity
             $response = $this->cURL($url);
             if (preg_match('/<h2>Access Denied<\/h2>/', $response)) {
                 $this->apiKey = '';
-            } else if (preg_match('/<p>Key: (.*)<\/p>/', $response, $matches)) {
-                $this->apiKey = $matches[1];
-            } else if ($recursionLevel < 3 && !empty($this->apiKeyDomain)) {
-                $registerUrl = 'https://steamcommunity.com/dev/registerkey';
-                $params = [
-                    'domain' => $this->apiKeyDomain,
-                    'agreeToTerms' => 'agreed',
-                    'sessionid' => $this->sessionId,
-                    'Submit' => 'Register'
-                ];
-                $this->cURL($registerUrl, $url, $params);
-                $recursionLevel++;
-                $this->_setApiKey($recursionLevel);
             } else {
-                $this->apiKey = '';
+                if (preg_match('/<p>Key: (.*)<\/p>/', $response, $matches)) {
+                    $this->apiKey = $matches[1];
+                } else {
+                    if ($recursionLevel < 3 && !empty($this->apiKeyDomain)) {
+                        $registerUrl = 'https://steamcommunity.com/dev/registerkey';
+                        $params = [
+                            'domain' => $this->apiKeyDomain,
+                            'agreeToTerms' => 'agreed',
+                            'sessionid' => $this->sessionId,
+                            'Submit' => 'Register',
+                        ];
+                        $this->cURL($registerUrl, $url, $params);
+                        $recursionLevel++;
+                        $this->_setApiKey($recursionLevel);
+                    } else {
+                        $this->apiKey = '';
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * @return bool
+     */
+    private function incrementCountRequests()
+    {
+        if ($this->countRequestStorer) {
+            $this->countRequestStorer->incrementCountRequest($this, $this->proxy['ip']);
+        }
+
+        return true;
+    }
+
+    /**
+     * @return null
+     */
+    public function getCountRequests()
+    {
+        if ($this->countRequestStorer) {
+            return $this->countRequestStorer->getCountRequest($this, $this->proxy['ip']);
+        }
+
+        return null;
     }
 
     /**
@@ -395,6 +507,7 @@ class SteamCommunity
         if (empty($this->apiKey)) {
             throw new SteamException('Could not register API key.');
         }
+
         return $this->apiKey;
     }
 
@@ -461,7 +574,7 @@ class SteamCommunity
      */
     public function getCaptchaLink()
     {
-        return 'https://steamcommunity.com/public/captcha.php?gid=' . $this->captchaGID;
+        return 'https://steamcommunity.com/public/captcha.php?gid='.$this->captchaGID;
     }
 
     /**
