@@ -42,6 +42,18 @@ class Confirmations
         } catch (\Exception $ex) {
             return $confirmations;
         }
+
+        if (strpos($response, 'too many requests') === true) {
+            if ($countRequestStorer = $this->mobileAuth->steamCommunity()->getCountRequestStorer()) {
+                $countRequestStorer->markIpAsBaned(
+                    $this->mobileAuth->steamCommunity(),
+                    $this->mobileAuth->steamCommunity()->getProxy()
+                );
+            }
+
+            throw new TooManyRequestsException();
+        }
+
         if (strpos($response, '<div>Nothing to confirm</div>') === false) {
             $confIdRegex = '/data-confid="(\d+)"/';
             $confKeyRegex = '/data-key="(\d+)"/';
@@ -76,17 +88,6 @@ class Confirmations
             } else {
                 throw new WgTokenInvalidException();
             }
-        }
-
-        if (strpos($response, 'too many requests') === true) {
-            if ($countRequestStorer = $this->mobileAuth->steamCommunity()->getCountRequestStorer()) {
-                $countRequestStorer->markIpAsBaned(
-                    $this->mobileAuth->steamCommunity(),
-                    $this->mobileAuth->steamCommunity()->getProxy()
-                );
-            }
-
-            throw new TooManyRequestsException();
         }
 
         return $confirmations;
