@@ -53,7 +53,10 @@ class Confirmations
             preg_match_all($confOfferRegex, $response, $confOfferMatches);
             preg_match_all($confDescRegex, $response, $confDescMatches);
 
-            if (count($confIdMatches[1]) > 0 && count($confKeyMatches[1]) > 0 && count($confDescMatches) > 0 && count($confOfferMatches) > 0) {
+            if (count($confIdMatches[1]) > 0 && count($confKeyMatches[1]) > 0 && count($confDescMatches) > 0 && count(
+                    $confOfferMatches
+                ) > 0
+            ) {
                 $checkedConfIds = [];
 
                 for ($i = 0; $i < count($confIdMatches[1]); $i++) {
@@ -74,18 +77,32 @@ class Confirmations
                 throw new WgTokenInvalidException();
             }
         }
+
+        if (strpos($response, 'too many requests') === true) {
+            if ($countRequestStorer = $this->mobileAuth->steamCommunity()->getCountRequestStorer()) {
+                $countRequestStorer->markIpAsBaned(
+                    $this->mobileAuth->steamCommunity(),
+                    $this->mobileAuth->steamCommunity()->getProxy()
+                );
+            }
+
+            throw new TooManyRequestsException();
+        }
+
         return $confirmations;
     }
 
     public function generateConfirmationUrl($tag = 'conf')
     {
-        return 'https://steamcommunity.com/mobileconf/conf?' . $this->generateConfirmationQueryParams($tag);
+        return 'https://steamcommunity.com/mobileconf/conf?'.$this->generateConfirmationQueryParams($tag);
     }
 
     public function generateConfirmationQueryParams($tag)
     {
         $time = TimeAligner::GetSteamTime();
-        return 'p=' . $this->mobileAuth->getDeviceId() . '&a=' . $this->mobileAuth->steamCommunity()->getSteamId() . '&k=' . $this->_generateConfirmationHashForTime($time, $tag) . '&t=' . $time . '&m=android&tag=' . $tag;
+
+        return 'p='.$this->mobileAuth->getDeviceId().'&a='.$this->mobileAuth->steamCommunity()->getSteamId(
+            ).'&k='.$this->_generateConfirmationHashForTime($time, $tag).'&t='.$time.'&m=android&tag='.$tag;
     }
 
     private function _generateConfirmationHashForTime($time, $tag)
@@ -93,10 +110,11 @@ class Confirmations
         $identitySecret = base64_decode($this->mobileAuth->getIdentitySecret());
         $array = $tag ? substr($tag, 0, 32) : '';
         for ($i = 8; $i > 0; $i--) {
-            $array = chr($time & 0xFF) . $array;
+            $array = chr($time & 0xFF).$array;
             $time >>= 8;
         }
         $code = hash_hmac("sha1", $array, $identitySecret, true);
+
         return base64_encode($code);
     }
 
@@ -107,7 +125,8 @@ class Confirmations
      */
     public function getConfirmationTradeOfferId(Confirmation $confirmation)
     {
-        $url = 'https://steamcommunity.com/mobileconf/details/' . $confirmation->getConfirmationId() . '?' . $this->generateConfirmationQueryParams('details');
+        $url = 'https://steamcommunity.com/mobileconf/details/'.$confirmation->getConfirmationId(
+            ).'?'.$this->generateConfirmationQueryParams('details');
         $response = '';
         try {
             $response = $this->mobileAuth->steamCommunity()->cURL($url);
@@ -129,6 +148,7 @@ class Confirmations
                 }
             }
         }
+
         return '0';
     }
 
@@ -154,7 +174,9 @@ class Confirmations
 
     private function _sendConfirmationAjax(Confirmation $confirmation, $op)
     {
-        $url = 'https://steamcommunity.com/mobileconf/ajaxop?op=' . $op . '&' . $this->generateConfirmationQueryParams($op) . '&cid=' . $confirmation->getConfirmationId() . '&ck=' . $confirmation->getConfirmationKey();
+        $url = 'https://steamcommunity.com/mobileconf/ajaxop?op='.$op.'&'.$this->generateConfirmationQueryParams(
+                $op
+            ).'&cid='.$confirmation->getConfirmationId().'&ck='.$confirmation->getConfirmationKey();
         $response = '';
         try {
             $response = $this->mobileAuth->steamCommunity()->cURL($url);
@@ -163,8 +185,10 @@ class Confirmations
         }
         if (!empty($response)) {
             $json = json_decode($response, true);
+
             return isset($json['success']) && $json['success'];
         }
+
         return false;
     }
 }

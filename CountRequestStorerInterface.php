@@ -17,4 +17,6 @@ interface CountRequestStorerInterface
     public function incrementCountRequest(SteamCommunity $steamCommunity, string $ip);
 
     public function getCountRequest(SteamCommunity $steamCommunity, string $ip);
+
+    public function markIpAsBaned(SteamCommunity $steamCommunity, string $ip);
 }

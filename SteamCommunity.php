@@ -654,4 +654,20 @@ class SteamCommunity
     {
         return $this->mobileAuth;
     }
+
+    /**
+     * @return null|CountRequestStorerInterface
+     */
+    public function getCountRequestStorer()
+    {
+        return $this->countRequestStorer;
+    }
+
+    /**
+     * @return mixed|null
+     */
+    public function getProxy()
+    {
+        return $this->proxy;
+    }
 }
