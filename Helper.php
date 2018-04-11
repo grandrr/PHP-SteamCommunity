@@ -61,8 +61,8 @@ class Helper
         return (float) str_replace(',', '.', $removedThousendSeparator);
     }
 
-    public static function cURL($url, $ref = null, $postData = null)
+    public static function cURL($url, $ref = null, $postData = null, $proxy = null)
     {
-        return (new SteamCommunity())->cURL($url, $ref, $postData);
+        return (new SteamCommunity(array('proxy' => $proxy)))->cURL($url, $ref, $postData);
     }
 }

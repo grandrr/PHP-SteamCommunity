@@ -100,7 +100,7 @@ class Confirmations
 
     public function generateConfirmationQueryParams($tag)
     {
-        $time = TimeAligner::GetSteamTime();
+        $time = TimeAligner::GetSteamTime($this->mobileAuth->steamCommunity()->getProxy());
 
         return 'p='.$this->mobileAuth->getDeviceId().'&a='.$this->mobileAuth->steamCommunity()->getSteamId(
             ).'&k='.$this->_generateConfirmationHashForTime($time, $tag).'&t='.$time.'&m=android&tag='.$tag;

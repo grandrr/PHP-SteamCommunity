@@ -13,15 +13,15 @@ use waylaidwanderer\SteamCommunity\Helper;
 
 class TimeAligner
 {
-    public static function GetSteamTime()
+    public static function GetSteamTime($proxy = null)
     {
-        return time() + self::GetTimeDifference();
+        return time() + self::GetTimeDifference($proxy);
     }
 
-    public static function GetTimeDifference()
+    public static function GetTimeDifference($proxy = null)
     {
         try {
-            $response = Helper::cURL('http://api.steampowered.com/ITwoFactorService/QueryTime/v0001', null, ['steamid' => 0]);
+            $response = Helper::cURL('http://api.steampowered.com/ITwoFactorService/QueryTime/v0001', null, ['steamid' => 0], $proxy);
             $json = json_decode($response, true);
             if (isset($json['response']) && isset($json['response']['server_time'])) {
                 return (int)$json['response']['server_time'] - time();

@@ -33,7 +33,7 @@ class MobileAuth
         $this->confirmations = new Confirmations($this);
 
         $this->steamCommunity = $steamCommunity;
-        $this->steamCommunity->setTwoFactorCode($this->steamGuard->generateSteamGuardCode());
+        $this->steamCommunity->setTwoFactorCode($this->steamGuard->generateSteamGuardCode($steamCommunity->getProxy()));
         $this->steamCommunity->doLogin(true);
     }
 

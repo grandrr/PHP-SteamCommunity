@@ -20,9 +20,9 @@ class SteamGuard
         $this->sharedSecret = $sharedSecret;
     }
 
-    public function generateSteamGuardCode()
+    public function generateSteamGuardCode($proxy = null)
     {
-        return $this->generateSteamGuardCodeForTime(TimeAligner::GetSteamTime());
+        return $this->generateSteamGuardCodeForTime(TimeAligner::GetSteamTime($proxy));
     }
 
     public function generateSteamGuardCodeForTime($time)
