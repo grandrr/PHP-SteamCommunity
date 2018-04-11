@@ -47,7 +47,7 @@ class Confirmations
             if ($countRequestStorer = $this->mobileAuth->steamCommunity()->getCountRequestStorer()) {
                 $countRequestStorer->markIpAsBaned(
                     $this->mobileAuth->steamCommunity(),
-                    $this->mobileAuth->steamCommunity()->getProxy()
+                    $this->mobileAuth->steamCommunity()->getProxy()['ip']
                 );
             }
 
