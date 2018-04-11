@@ -43,7 +43,7 @@ class Confirmations
             return $confirmations;
         }
 
-        if (strpos($response, 'too many requests') === true) {
+        if (strpos($response, 'too many requests') == true) {
             if ($countRequestStorer = $this->mobileAuth->steamCommunity()->getCountRequestStorer()) {
                 $countRequestStorer->markIpAsBaned(
                     $this->mobileAuth->steamCommunity(),
