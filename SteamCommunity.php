@@ -136,12 +136,15 @@ class SteamCommunity
         $rsaJson = json_decode($rsaResponse, true);
         if ($rsaJson == null) {
 
-            echo PHP_EOL;
-            echo 'rsa response';
-            echo PHP_EOL;
-            print_r($rsaResponse);
-            echo PHP_EOL;
-            echo PHP_EOL;
+//            echo PHP_EOL;
+//            echo PHP_EOL;
+//            echo PHP_EOL;
+//            echo '--> rsa response <--';
+//            echo PHP_EOL;
+//            print_r($rsaResponse);
+//            echo PHP_EOL;
+//            echo PHP_EOL;
+//            echo PHP_EOL;
 
             return LoginResult::GeneralFailure;
         }
@@ -179,9 +182,12 @@ class SteamCommunity
         $loginResponse = $this->cURL('https://steamcommunity.com/login/dologin/', null, $params);
 
         echo PHP_EOL;
-        echo 'login response';
+        echo PHP_EOL;
+        echo PHP_EOL;
+        echo '--> login response <---';
         echo PHP_EOL;
         print_r($loginResponse);
+        echo PHP_EOL;
         echo PHP_EOL;
         echo PHP_EOL;
 
@@ -362,12 +368,15 @@ class SteamCommunity
     {
         $response = $this->cURL('http://steamcommunity.com/');
 
-        echo PHP_EOL;
-        echo 'response->';
-        echo PHP_EOL;
-        print_r($response);
-        echo PHP_EOL;
-        echo PHP_EOL;
+//        echo PHP_EOL;
+//        echo PHP_EOL;
+//        echo PHP_EOL;
+//        echo '--> response get session <--';
+//        echo PHP_EOL;
+//        print_r($response);
+//        echo PHP_EOL;
+//        echo PHP_EOL;
+//        echo PHP_EOL;
 
         $pattern = '/g_steamID = (.*);/';
         preg_match($pattern, $response, $matches);
@@ -437,23 +446,44 @@ class SteamCommunity
     {
         $name = $this->mobile ? $this->username.'_auth' : $this->username;
 
+        if (!is_null($this->getProxy())) {
+            $name = $name.':'.$this->getProxy()['ip'];
+        }
+
         return $this->_getFilePath('cookiefiles', $name, 'cookiefile');
     }
 
     private function _createCookieFile()
     {
         $name = $this->mobile ? $this->username.'_auth' : $this->username;
+
+        if (!is_null($this->getProxy())) {
+            $name = $name.':'.$this->getProxy()['ip'];
+        }
+
         $this->_createFile('cookiefiles', $name, 'cookiefile');
     }
 
     public function getAuthFilePath()
     {
-        return $this->_getFilePath('authfiles', $this->username, 'authfile');
+        $username = $this->username;
+
+        if (!is_null($this->getProxy())) {
+            $username = $username.':'.$this->getProxy()['ip'];
+        }
+
+        return $this->_getFilePath('authfiles', $username, 'authfile');
     }
 
     private function _createAuthFile()
     {
-        $this->_createFile('authfiles', $this->username, 'authfile');
+        $username = $this->username;
+
+        if (!is_null($this->getProxy())) {
+            $username = $username.':'.$this->getProxy()['ip'];
+        }
+
+        $this->_createFile('authfiles', $username, 'authfile');
     }
 
     private function _setApiKey($recursionLevel = 1)

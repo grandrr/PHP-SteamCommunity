@@ -32,8 +32,11 @@ class Confirmations
         $response = '';
         try {
             $response = $this->mobileAuth->steamCommunity()->cURL($url);
-
-            print_r('list confirmations');
+            echo PHP_EOL;
+            echo PHP_EOL;
+            echo PHP_EOL;
+            print_r('--> list confirmations <--');
+            echo PHP_EOL;
             print_r($response);
             echo PHP_EOL;
             echo PHP_EOL;
@@ -131,7 +134,9 @@ class Confirmations
         $response = '';
         try {
             $response = $this->mobileAuth->steamCommunity()->cURL($url);
-
+            echo PHP_EOL;
+            echo PHP_EOL;
+            echo PHP_EOL;
             print_r($response);
             echo PHP_EOL;
             echo PHP_EOL;
@@ -181,6 +186,17 @@ class Confirmations
         $response = '';
         try {
             $response = $this->mobileAuth->steamCommunity()->cURL($url);
+
+            echo PHP_EOL;
+            echo PHP_EOL;
+            echo PHP_EOL;
+            echo '--> responce accept confirmation <--';
+            echo PHP_EOL;
+            print_r($response);
+            echo PHP_EOL;
+            echo PHP_EOL;
+            echo PHP_EOL;
+
         } catch (\Exception $ex) {
 
         }
