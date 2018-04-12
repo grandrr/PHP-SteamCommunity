@@ -521,7 +521,7 @@ class SteamCommunity
      */
     private function incrementCountRequests()
     {
-        if (!is_null($this->countRequestStorer)) {
+        if (!is_null($this->countRequestStorer) && !is_null($this->proxy)) {
             $this->countRequestStorer->incrementCountRequest($this, $this->proxy['ip']);
         }
 
@@ -533,7 +533,7 @@ class SteamCommunity
      */
     public function getCountRequests()
     {
-        if (!is_null($this->countRequestStorer)) {
+        if (!is_null($this->countRequestStorer) && !is_null($this->proxy)) {
             return $this->countRequestStorer->getCountRequest($this, $this->proxy['ip']);
         }
 
